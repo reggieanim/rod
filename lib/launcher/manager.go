@@ -177,12 +177,9 @@ func (m *Manager) launch(w http.ResponseWriter, r *http.Request) {
 
 	m.BeforeLaunch(l, w, r)
 
-	kill := l.Has(flags.Leakless)
-
 	// Always enable leakless so that if the Manager process crashes
 	// all the managed browsers will be killed.
-	u := l.Leakless(true).MustLaunch()
-	defer m.cleanup(l, kill)
+	u := l.MustLaunch()
 
 	parsedURL, err := url.Parse(u)
 	utils.E(err)

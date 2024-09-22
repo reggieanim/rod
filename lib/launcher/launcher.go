@@ -4,9 +4,9 @@ package launcher
 import (
 	"context"
 	"crypto"
-	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,7 +17,6 @@ import (
 	"github.com/go-rod/rod/lib/defaults"
 	"github.com/go-rod/rod/lib/launcher/flags"
 	"github.com/go-rod/rod/lib/utils"
-	"github.com/ysmood/leakless"
 )
 
 // DefaultUserDataDirPrefix ...
@@ -56,8 +55,7 @@ func New() *Launcher {
 	}
 
 	defaultFlags := map[flags.Flag][]string{
-		flags.Bin:      {defaults.Bin},
-		flags.Leakless: nil,
+		flags.Bin: {defaults.Bin},
 
 		flags.UserDataDir: {dir},
 
@@ -267,15 +265,6 @@ func (l *Launcher) AlwaysOpenPDFExternally() *Launcher {
 	return l.Set(flags.Preferences, `{"plugins":{"always_open_pdf_externally": true}}`)
 }
 
-// Leakless switch. If enabled, the browser will be force killed after the Go process exits.
-// The doc of leakless: https://github.com/ysmood/leakless.
-func (l *Launcher) Leakless(enable bool) *Launcher {
-	if enable {
-		return l.Set(flags.Leakless)
-	}
-	return l.Delete(flags.Leakless)
-}
-
 // Devtools switch to auto open devtools for each tab.
 func (l *Launcher) Devtools(autoOpenForTabs bool) *Launcher {
 	if autoOpenForTabs {
@@ -421,14 +410,12 @@ func (l *Launcher) Launch() (string, error) {
 
 	l.setupUserPreferences()
 
-	var ll *leakless.Launcher
 	var cmd *exec.Cmd
 
 	args := l.FormatArgs()
 
-	if l.Has(flags.Leakless) && leakless.Support() {
-		ll = leakless.New()
-		cmd = ll.Command(bin, args...)
+	if l.Has(flags.Leakless) {
+		log.Println("No leakless")
 	} else {
 		port := l.Get(flags.RemoteDebuggingPort)
 		u, err := ResolveURL(port)
@@ -443,15 +430,6 @@ func (l *Launcher) Launch() (string, error) {
 	err = cmd.Start()
 	if err != nil {
 		return "", err
-	}
-
-	if ll == nil {
-		l.pid = cmd.Process.Pid
-	} else {
-		l.pid = <-ll.Pid()
-		if ll.Err() != "" {
-			return "", errors.New(ll.Err())
-		}
 	}
 
 	go func() {
